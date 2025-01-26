@@ -1,13 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>index|Crexy auth</title>
     <link rel="stylesheet" href="style.css">
-    
+
 </head>
+
 <body>
     <h1>This is the home page of Crexy Authentication server</h1>
+    <div class="login">
+        <p class="infologin nunito-font">login into Crexy</p>
+        <form method="post" action="/selfauth">
+            <h2>Sign Up</h2>
+            <input type="text" placeholder="Your Name" name="uname" required>
+            <input type="email" placeholder="Your Email" name="email" required>
+            <input type="password" placeholder="Password" name="pswrd" required>
+            <button type="submit">Submit</button>
+        </form>
+    </div>
 </body>
+
 </html>

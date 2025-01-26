@@ -6,7 +6,8 @@ namespace Server
     int serverSocket, clientSocket = 0;
     int port;
     sockaddr_in serverAddr;
-    std::vector<std::pair<std::string, std::function<void()>>> GET_ROUTES;
+    std::vector<std::pair<std::string, std::function<void(std::vector<std::pair<std::string, std::string>>)>>> GET_ROUTES;
+    std::vector<std::pair<std::string, std::function<void(std::vector<std::pair<std::string, std::string>>)>>> POST_ROUTES;
 
     bool initilizeServer(int Sport)
     {
@@ -104,16 +105,19 @@ namespace Server
         std::string methodParam = tokens.at(0);
 
         std::string method = methodParam.substr(0, methodParam.find(" "));
-        std::string route = methodParam.substr(method.size() + 1, std::string(methodParam.substr(method.size() + 1)).find(" "));
+        int end = (std::string(methodParam.substr(method.size() + 1)).find(" ") >= std::string(methodParam.substr(method.size() + 1)).find("?")) ? std::string(methodParam.substr(method.size() + 1)).find("?") : std::string(methodParam.substr(method.size() + 1)).find(" ");
+        std::string route = methodParam.substr(method.size() + 1, end);
 
+        auto URLParmas = extractURLParams(methodParam, method);
         std::cout << method << std::endl;
         std::cout << route << std::endl;
         if (method == "GET")
+        {
             for (size_t i = 0; i < GET_ROUTES.size(); i++)
             {
                 for (auto &&token : tokens)
                 {
-                    if (token.substr(0, 16) == "Accept: text/css" || token.substr(0, 24) == "Sec-Fetch-Dest: style" || methodParam.substr(method.size() + route.size() - 3).substr(0,4) == ".css")
+                    if (token.substr(0, 16) == "Accept: text/css" || token.substr(0, 24) == "Sec-Fetch-Dest: style" || methodParam.substr(method.size() + route.size() - 3).substr(0, 4) == ".css")
                     {
                         if (route[0] == '/')
                             Routes::serveStaticCSS(route.substr(1));
@@ -124,14 +128,67 @@ namespace Server
                 }
                 if (GET_ROUTES.at(i).first == route)
                 {
-                    GET_ROUTES.at(i).second();
+                    GET_ROUTES.at(i).second(URLParmas);
                 }
             }
+        }
+        else if (method == "POST")
+        {
+            for (auto &&sroute : POST_ROUTES)
+            {
+                if (sroute.first == route)
+                {
+                    auto kvPair = extractPOSTParams(tokens);
+
+                    sroute.second(kvPair);
+                }
+            }
+        }
 
         // for (const auto &str : tokens)
         // {
         //     std::cout << "---->" << str << std::endl;
         // }
+    }
+
+    std::string decodeURLParams(std::string encodedURLParams)
+    {
+        std::string decodedURLParmas = encodedURLParams;
+        for (size_t i = 0; i < decodedURLParmas.size(); i++)
+        {
+            if (decodedURLParmas.at(i) == '%')
+            {
+                auto v = decodedURLParmas.substr(i + 1, 2);
+                decodedURLParmas.replace(i + 1, 2, "");
+                decodedURLParmas.at(i) = static_cast<char>(std::stoi(v, nullptr, 16));
+            }
+            else if (decodedURLParmas.at(i) == '+')
+                decodedURLParmas.at(i) = ' ';
+        }
+        std::cout << std::endl;
+        return decodedURLParmas;
+    }
+
+    std::vector<std::pair<std::string, std::string>> extractURLParams(std::string &methodParam, std::string &method)
+    {
+        if (std::string(methodParam.substr(method.size() + 1)).find(" ") >= std::string(methodParam.substr(method.size() + 1)).find("?"))
+        // the URL parmeter exists
+        {
+            std::vector<std::pair<std::string, std::string>> URLParamPair;
+            int start = std::string(methodParam).find("?");
+            std::string URLQueryParams = methodParam.substr(start, methodParam.substr(start).find(" "));
+
+            for (size_t i = 0; i < URLQueryParams.size(); i++)
+            {
+                if (URLQueryParams.at(i) == '?' || URLQueryParams.at(i) == '&')
+                {
+                    std::string queryPair = URLQueryParams.substr(i + 1, URLQueryParams.substr(i + 1).find("&"));
+                    URLParamPair.push_back(std::pair<std::string, std::string>(queryPair.substr(0, queryPair.find("=")), queryPair.substr(queryPair.find("=") + 1)));
+                }
+            }
+            return URLParamPair;
+        }
+        return std::vector<std::pair<std::string, std::string>>();
     }
 
     std::vector<std::string> tokenizeBuffer(std::string buffer)
@@ -154,5 +211,28 @@ namespace Server
     {
         std::cout << "shutting down the server" << std::endl;
         close(serverSocket);
+    }
+
+    std::vector<std::pair<std::string, std::string>> extractPOSTParams(std::vector<std::string> &tokens)
+    {
+        std::string token = tokens.back();
+        std::vector<std::pair<std::string, std::string>> keyvaluePair;
+        int nextIDX = 0;
+        int cIDX = 0;
+        for (size_t i = 0; i < token.size(); i++)
+        {
+            if (token.at(i) == '=')
+            {
+                nextIDX = token.substr(i + 1, token.substr(i).find("&")).size() + 1 + i;
+                std::pair<std::string, std::string> p;
+                p.first = token.substr(cIDX, token.substr(cIDX).find("="));
+                p.second = decodeURLParams(token.substr(cIDX + token.substr(cIDX, token.substr(cIDX).find("=")).size() + 1, token.substr(cIDX + token.substr(cIDX, token.substr(cIDX).find("=")).size()).find("&") - 1));
+
+                keyvaluePair.push_back(p);
+                cIDX = nextIDX;
+            }
+        }
+
+        return keyvaluePair;
     }
 }

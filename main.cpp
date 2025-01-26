@@ -23,6 +23,8 @@ void setupRoutes()
     Server::GET_ROUTES.push_back(std::make_pair("/", Routes::home));
     Server::GET_ROUTES.push_back(std::make_pair("/index", Routes::home));
     Server::GET_ROUTES.push_back(std::make_pair("/home", Routes::home));
+    
+    Server::POST_ROUTES.push_back(std::make_pair("/selfauth", Routes::selfauth));
 }
 
 int main(int argc, char const *argv[])
